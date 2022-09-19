@@ -18,10 +18,36 @@ import (
 )
 
 func main() {
+
+	go func() {
+		http.HandleFunc("/login", spotify_login)
+		auth_code := make(chan string)
+		go pass_callback(auth_code)
+		handleCallback := spotify_callback(auth_code)
+		http.HandleFunc("/callback", handleCallback)
+
+		err := http.ListenAndServe("localhost:3000", nil)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	err := godotenv.Load(".env")
 	if err != nil {
-		if os.Getenv("MASTODON_INSTANCE_URL") == "" || os.Getenv("MASTODON_CLIENT_ID") == "" || os.Getenv("MASTODON_CLIENT_SECRET") == "" || os.Getenv("MASTODON_ACCOUNT_EMAIL") == "" || os.Getenv("MASTODON_ACCOUNT_PASSWORD") == "" || os.Getenv("SPOTIFY_CLIENT_ID") == "" || os.Getenv("SPOTIFY_CLIENT_SECRET") == "" || os.Getenv("SPOTIFY_REFRESH_TOKEN") == "" {
-			log.Fatal("Failed to load credentials.")
+		log.Fatal("Failed to load credentials.")
+	} else if os.Getenv("MASTODON_INSTANCE_URL") == "" || os.Getenv("MASTODON_CLIENT_ID") == "" || os.Getenv("MASTODON_CLIENT_SECRET") == "" || os.Getenv("MASTODON_ACCOUNT_EMAIL") == "" || os.Getenv("MASTODON_ACCOUNT_PASSWORD") == "" || os.Getenv("SPOTIFY_CLIENT_ID") == "" || os.Getenv("SPOTIFY_CLIENT_SECRET") == "" {
+		log.Fatal("Failed to load credentials.")
+	} else if os.Getenv("SPOTIFY_REFRESH_TOKEN") == "" {
+		fmt.Println("`SPOTIFY_REFRESH_TOKEN` is not set. Please click the URL below.")
+		values := url.Values{}
+		values.Add("client_id", os.Getenv("SPOTIFY_CLIENT_ID"))
+		values.Add("response_type", "code")
+		values.Add("redirect_uri", "http://localhost:3000/callback")
+		fmt.Println("https://accounts.spotify.com/authorize?" + values.Encode())
+
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 
@@ -65,6 +91,73 @@ func main() {
 	}
 }
 
+func spotify_login(w http.ResponseWriter, req *http.Request) {
+	values := url.Values{}
+	values.Add("client_id", os.Getenv("SPOTIFY_CLIENT_ID"))
+	values.Add("response_type", "code")
+	values.Add("redirect_uri", "http://localhost:3000/callback")
+
+	http.Redirect(w, req, "https://accounts.spotify.com/authorize?"+values.Encode(), http.StatusFound)
+}
+
+func spotify_callback(auth_code chan string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		query := req.URL.Query().Get("code")
+		auth_code <- query
+
+		w.WriteHeader(200)
+		w.Header().Set("Content-Type", "text/html; charset=utf8")
+
+		w.Write([]byte("処理が完了しました。この画面を閉じることができます。\nnp2mast を再起動してください。"))
+
+	}
+}
+
+func pass_callback(auth_code chan string) {
+	for item := range auth_code {
+		save_refresh_token(item)
+	}
+}
+
+func save_refresh_token(auth_code string) {
+	values := make(url.Values)
+	values.Set("grant_type", "authorization_code")
+	values.Set("code", auth_code)
+	values.Set("redirect_uri", "http://localhost:3000/callback")
+	req, err := http.NewRequest(http.MethodPost, "https://accounts.spotify.com/api/token", strings.NewReader(values.Encode()))
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", os.Getenv("SPOTIFY_CLIENT_ID"), os.Getenv("SPOTIFY_CLIENT_SECRET"))))))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var jsonObj interface{}
+	if err := json.Unmarshal(body, &jsonObj); err != nil {
+		log.Fatal(err)
+	}
+
+	refresh_token := jsonObj.(map[string]interface{})["refresh_token"].(string)
+	refresh_token_env, err := godotenv.Unmarshal(fmt.Sprintf("MASTODON_INSTANCE_URL=%s\nMASTODON_CLIENT_ID=%s\nMASTODON_CLIENT_SECRET=%s\nMASTODON_ACCOUNT_EMAIL=%s\nMASTODON_ACCOUNT_PASSWORD=%s\nSPOTIFY_CLIENT_ID=%s\nSPOTIFY_CLIENT_SECRET=%s\nSPOTIFY_REFRESH_TOKEN=%s\n", os.Getenv("MASTODON_INSTANCE_URL"), os.Getenv("MASTODON_CLIENT_ID"), os.Getenv("MASTODON_CLIENT_SECRET"), os.Getenv("MASTODON_ACCOUNT_EMAIL"), os.Getenv("MASTODON_ACCOUNT_PASSWORD"), os.Getenv("SPOTIFY_CLIENT_ID"), os.Getenv("SPOTIFY_CLIENT_SECRET"), refresh_token))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = godotenv.Write(refresh_token_env, "./.env")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	os.Exit(0)
+}
+
 func get_spotify_access_token() string {
 	values := make(url.Values)
 	values.Set("grant_type", "refresh_token")
@@ -90,10 +183,8 @@ func get_spotify_access_token() string {
 
 	var jsonObj interface{}
 	if err := json.Unmarshal(body, &jsonObj); err != nil {
-		fmt.Println(err)
-		return "ERR"
+		log.Fatal(err)
 	}
-
 	return jsonObj.(map[string]interface{})["access_token"].(string)
 }
 
