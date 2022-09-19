@@ -42,18 +42,20 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			is_playing, title, artist, album := get_spotify_np()
+			is_playing, title, artist, album, url, progress := get_spotify_np()
 			if is_playing {
 				if last_title == "" || title != last_title {
-					message := fmt.Sprintf("🎵 #NowPlaying #np: %s / %s (%s)\n", title, artist, album)
-					fmt.Println(message)
-					toot := mastodon.Toot{
-						Status:     message,
-						Visibility: "unlisted",
-					}
-					mastodon_client.PostStatus(context.Background(), &toot)
+					if progress > 5000 {
+						message := fmt.Sprintf("🎵 #NowPlaying #np: %s / %s (%s)\n%s", title, artist, album, url)
+						fmt.Println(message)
+						// toot := mastodon.Toot{
+						// 	Status:     message,
+						// 	Visibility: "unlisted",
+						// }
+						// mastodon_client.PostStatus(context.Background(), &toot)
 
-					last_title = title
+						last_title = title
+					}
 				}
 			} else {
 				title, artist, album = "", "", ""
@@ -95,7 +97,7 @@ func get_spotify_access_token() string {
 	return jsonObj.(map[string]interface{})["access_token"].(string)
 }
 
-func get_spotify_np() (is_playing bool, title string, artist string, album string) {
+func get_spotify_np() (is_playing bool, title string, artist string, album string, url string, progress int) {
 	req, err := http.NewRequest(http.MethodGet, "https://api.spotify.com/v1/me/player/currently-playing", nil)
 	if err != nil {
 		log.Fatal(err)
@@ -115,7 +117,7 @@ func get_spotify_np() (is_playing bool, title string, artist string, album strin
 
 	is_playing = jsonObj.(map[string]interface{})["is_playing"].(bool)
 
-	if is_playing == true {
+	if is_playing {
 		title = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["name"].(string)
 
 		artists := jsonObj.(map[string]interface{})["item"].(map[string]interface{})["artists"]
@@ -127,11 +129,17 @@ func get_spotify_np() (is_playing bool, title string, artist string, album strin
 		}
 
 		album = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["album"].(map[string]interface{})["name"].(string)
+
+		url = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["external_urls"].(map[string]interface{})["spotify"].(string)
+
+		progress = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["progress_ms"].(int)
 	} else {
 		is_playing = false
 
 		title, artist, album = "", "", ""
 	}
 
-	return is_playing, title, artist, album
+	// fmt.Println(string(body))
+
+	return is_playing, title, artist, album, url, progress
 }
