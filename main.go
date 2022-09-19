@@ -66,6 +66,8 @@ func main() {
 					}
 					c.PostStatus(context.Background(), &toot)
 				}
+			} else {
+				title, artist, album = "", "", ""
 			}
 
 		}
