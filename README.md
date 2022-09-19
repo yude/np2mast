@@ -1,5 +1,5 @@
 # np2mast
-yude の Now Playing を Mastodon に投稿
+Spotify の Now Playing を Mastodon に投稿するボット
 
 ## License
 MIT
