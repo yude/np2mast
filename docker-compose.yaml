@@ -1,0 +1,8 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    image: ghcr.io/yude/np2mast:master
+    env_file: .env
+    restart: unless-stopped
