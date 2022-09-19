@@ -35,7 +35,7 @@ func main() {
 
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("Failed to load credentials.")
+		log.Fatal(err)
 	} else if os.Getenv("MASTODON_INSTANCE_URL") == "" || os.Getenv("MASTODON_CLIENT_ID") == "" || os.Getenv("MASTODON_CLIENT_SECRET") == "" || os.Getenv("MASTODON_ACCOUNT_EMAIL") == "" || os.Getenv("MASTODON_ACCOUNT_PASSWORD") == "" || os.Getenv("SPOTIFY_CLIENT_ID") == "" || os.Getenv("SPOTIFY_CLIENT_SECRET") == "" {
 		log.Fatal("Failed to load credentials.")
 	} else if os.Getenv("SPOTIFY_REFRESH_TOKEN") == "" {
