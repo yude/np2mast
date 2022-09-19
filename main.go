@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -186,7 +187,24 @@ func get_spotify_access_token() string {
 		fmt.Println(string(body))
 		log.Fatal(err)
 	}
+
+	if isNil(jsonObj.(map[string]interface{})) {
+		fmt.Println(body)
+		os.Exit(1)
+	}
+
 	return jsonObj.(map[string]interface{})["access_token"].(string)
+}
+
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	switch reflect.TypeOf(i).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	}
+	return false
 }
 
 func get_spotify_np() (is_playing bool, title string, artist string, album string, url string, progress float64) {
