@@ -66,7 +66,7 @@ func main() {
 					}
 					c.PostStatus(context.Background(), &toot)
 				}
-			} else {
+			} else if jsonObj.(map[string]interface{})["isPlaying"] == false {
 				title, artist, album = "", "", ""
 			}
 
