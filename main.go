@@ -27,17 +27,16 @@ func main() {
 		handleCallback := spotify_callback(auth_code)
 		http.HandleFunc("/callback", handleCallback)
 
-		err := http.ListenAndServe("localhost:3000", nil)
+		err := http.ListenAndServe("0.0.0.0:3000", nil)
 
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 
-	err := godotenv.Load(".env")
-	if err != nil {
+	godotenv.Load(".env")
 
-	} else if os.Getenv("MASTODON_INSTANCE_URL") == "" || os.Getenv("MASTODON_CLIENT_ID") == "" || os.Getenv("MASTODON_CLIENT_SECRET") == "" || os.Getenv("MASTODON_ACCOUNT_EMAIL") == "" || os.Getenv("MASTODON_ACCOUNT_PASSWORD") == "" || os.Getenv("SPOTIFY_CLIENT_ID") == "" || os.Getenv("SPOTIFY_CLIENT_SECRET") == "" {
+	if os.Getenv("MASTODON_INSTANCE_URL") == "" || os.Getenv("MASTODON_CLIENT_ID") == "" || os.Getenv("MASTODON_CLIENT_SECRET") == "" || os.Getenv("MASTODON_ACCOUNT_EMAIL") == "" || os.Getenv("MASTODON_ACCOUNT_PASSWORD") == "" || os.Getenv("SPOTIFY_CLIENT_ID") == "" || os.Getenv("SPOTIFY_CLIENT_SECRET") == "" {
 		log.Fatal("Failed to load credentials.")
 	} else if os.Getenv("SPOTIFY_REFRESH_TOKEN") == "" {
 		fmt.Println("`SPOTIFY_REFRESH_TOKEN` is not set. Please click the URL below.")
@@ -46,10 +45,6 @@ func main() {
 		values.Add("response_type", "code")
 		values.Add("redirect_uri", "http://localhost:3000/callback")
 		fmt.Println("https://accounts.spotify.com/authorize?" + values.Encode())
-
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 
 	mastodon_client := mastodon.NewClient(&mastodon.Config{
@@ -57,7 +52,7 @@ func main() {
 		ClientID:     os.Getenv("MASTODON_CLIENT_ID"),
 		ClientSecret: os.Getenv("MASTODON_CLIENT_SECRET"),
 	})
-	err = mastodon_client.Authenticate(context.Background(), os.Getenv("MASTODON_ACCOUNT_EMAIL"), os.Getenv("MASTODON_ACCOUNT_PASSWORD"))
+	err := mastodon_client.Authenticate(context.Background(), os.Getenv("MASTODON_ACCOUNT_EMAIL"), os.Getenv("MASTODON_ACCOUNT_PASSWORD"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -142,6 +137,7 @@ func save_refresh_token(auth_code string) {
 
 	var jsonObj interface{}
 	if err := json.Unmarshal(body, &jsonObj); err != nil {
+		fmt.Println(string(body))
 		log.Fatal(err)
 	}
 
@@ -188,7 +184,7 @@ func get_spotify_access_token() string {
 		log.Fatal(err)
 	}
 
-	if isNil(jsonObj.(map[string]interface{})) {
+	if isNil(jsonObj.(map[string]interface{})["access_token"]) {
 		fmt.Println(body)
 		os.Exit(1)
 	}
@@ -227,6 +223,10 @@ func get_spotify_np() (is_playing bool, title string, artist string, album strin
 		log.Fatal(err)
 	}
 
+	if isNil(jsonObj.(map[string]interface{})["is_playing"]) {
+		fmt.Println(string(body))
+		os.Exit(1)
+	}
 	is_playing = jsonObj.(map[string]interface{})["is_playing"].(bool)
 
 	if is_playing {
