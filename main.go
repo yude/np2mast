@@ -183,6 +183,7 @@ func get_spotify_access_token() string {
 
 	var jsonObj interface{}
 	if err := json.Unmarshal(body, &jsonObj); err != nil {
+		fmt.Println(string(body))
 		log.Fatal(err)
 	}
 	return jsonObj.(map[string]interface{})["access_token"].(string)
@@ -204,6 +205,7 @@ func get_spotify_np() (is_playing bool, title string, artist string, album strin
 
 	var jsonObj interface{}
 	if err := json.Unmarshal(body, &jsonObj); err != nil {
+		fmt.Println(string(body))
 		log.Fatal(err)
 	}
 
