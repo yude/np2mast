@@ -116,7 +116,7 @@ func get_spotify_np() (is_playing bool, title string, artist string, album strin
 	is_playing = jsonObj.(map[string]interface{})["is_playing"].(bool)
 
 	if is_playing == true {
-		title = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["album"].(map[string]interface{})["name"].(string)
+		title = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["name"].(string)
 
 		artists := jsonObj.(map[string]interface{})["item"].(map[string]interface{})["artists"]
 		for i := 0; i < len(artists.([]interface{})); i++ {
@@ -126,7 +126,7 @@ func get_spotify_np() (is_playing bool, title string, artist string, album strin
 			}
 		}
 
-		album = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["name"].(string)
+		album = jsonObj.(map[string]interface{})["item"].(map[string]interface{})["album"].(map[string]interface{})["name"].(string)
 	} else {
 		is_playing = false
 
